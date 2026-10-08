@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Experiment 9 — ASK &amp; FSK</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:        #0a0e13;
+    --panel:     #10161e;
+    --panel-2:   #141c26;
+    --hair:      #223040;
+    --text:      #e7edf3;
+    --text-dim:  #8695a4;
+    --text-faint:#4d5a68;
+    --cyan:      #4fd1c5;
+    --cyan-d:    #2f8f86;
+    --amber:     #ffb020;
+    --amber-d:   #b3790a;
+    --coral:     #ff6b6b;
+    --green:     #7ee787;
+    --violet:    #b39ddb;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  #app{display:flex; min-height:100vh;}
+  #sidebar{
+    width:290px; flex:0 0 290px; background:var(--panel);
+    border-right:1px solid var(--hair); padding:22px 20px 30px;
+    display:flex; flex-direction:column; gap:18px;
+  }
+  .brand{display:flex; flex-direction:column; gap:2px; margin-bottom:4px;}
+  .brand .num{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--amber); letter-spacing:.04em;}
+  .brand h1{font-size:16.5px; font-weight:700; margin:0; line-height:1.3;}
+  .brand p{margin:2px 0 0; font-size:12.2px; color:var(--text-dim); line-height:1.5;}
+
+  .ctrl-group{display:flex; flex-direction:column; gap:12px; padding-top:14px; border-top:1px solid var(--hair);}
+  .ctrl-group h2{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); margin:0 0 2px; font-weight:600;}
+  .ctrl{display:flex; flex-direction:column; gap:6px;}
+  .ctrl-label{display:flex; justify-content:space-between; align-items:baseline; font-size:12.3px; color:var(--text-dim);}
+  .ctrl-val{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--cyan);}
+  input[type=range]{-webkit-appearance:none; width:100%; height:4px; border-radius:2px; background:var(--hair); outline:none; margin:4px 0;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--cyan); cursor:pointer; border:2px solid var(--bg); box-shadow:0 0 0 1px var(--cyan);}
+  input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:var(--cyan); cursor:pointer; border:2px solid var(--bg); box-shadow:0 0 0 1px var(--cyan);}
+  input[type=text]{background:var(--panel-2); color:var(--cyan); border:1px solid var(--hair); border-radius:6px; padding:8px 9px; font-family:'JetBrains Mono',monospace; font-size:13px; width:100%; letter-spacing:.04em;}
+  input[type=text]:focus{outline:none; border-color:var(--cyan);}
+  .btn{background:var(--panel-2); color:var(--text-dim); border:1px solid var(--hair); border-radius:6px; padding:7px 10px; font-size:12px; cursor:pointer; text-align:center; transition:.12s; font-weight:500;}
+  .btn:hover{color:var(--text); border-color:var(--cyan);}
+  .btn-row{display:flex; gap:6px;}
+  .btn-row .btn{flex:1;}
+
+  #main{flex:1; padding:22px 28px 40px; max-width:1240px;}
+  .tabs{display:flex; gap:2px; margin-bottom:20px; border-bottom:1px solid var(--hair); flex-wrap:wrap;}
+  .tab{padding:10px 13px; font-size:12.8px; color:var(--text-dim); cursor:pointer; border-bottom:2px solid transparent; user-select:none; font-weight:500; white-space:nowrap;}
+  .tab.active{color:var(--text); border-bottom-color:var(--amber);}
+  .tab:hover{color:var(--text);}
+  .view{display:none;} .view.active{display:block;}
+
+  .card{background:var(--panel); border:1px solid var(--hair); border-radius:10px; padding:12px 16px 8px; margin-bottom:14px;}
+  .card-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px; flex-wrap:wrap; gap:6px;}
+  .card-head h3{font-size:12.5px; font-weight:600; margin:0; color:var(--text-dim);}
+  .card-sub{font-size:11px; color:var(--text-faint);}
+  .bit-row{display:flex; width:100%; padding:0 2px; margin-top:2px;}
+  .bit-row span{flex:1; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint);}
+  canvas{display:block; width:100%;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+
+  .legend{display:flex; gap:12px; flex-wrap:wrap;}
+  .legend-item{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; cursor:pointer; user-select:none; padding:2px 6px; border-radius:5px; transition:.1s;}
+  .legend-item:hover{background:var(--panel-2);}
+  .legend-item.off{opacity:.32;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block; flex:0 0 auto;}
+  .sw{width:12px; height:8px; border-radius:2px; display:inline-block; flex:0 0 auto;}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th,td{padding:8px 10px; text-align:left; border-bottom:1px solid var(--hair);}
+  th{color:var(--text-faint); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.04em;}
+  td.mono, th.mono{font-family:'JetBrains Mono',monospace;}
+  td.center, th.center{text-align:center;}
+
+  .tag{display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:2px 8px; border-radius:20px; font-weight:600;}
+  .tag.good{background:rgba(126,231,135,.12); color:var(--green); border:1px solid rgba(126,231,135,.35);}
+  .tag.warn{background:rgba(255,176,32,.12); color:var(--amber); border:1px solid rgba(255,176,32,.4);}
+  .tag.bad{background:rgba(255,107,107,.12); color:var(--coral); border:1px solid rgba(255,107,107,.35);}
+
+  .validation{background:var(--panel); border:1px solid var(--hair); border-radius:10px; padding:14px 16px; margin:6px 0 16px;}
+  .validation .head{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .validation .badge{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; background:rgba(255,176,32,.12); color:var(--amber); border:1px solid rgba(255,176,32,.4);}
+  .validation p{margin:0 0 10px; font-size:12.3px; color:var(--text-dim); line-height:1.5;}
+
+  .stat-row{display:flex; gap:12px; flex-wrap:wrap; margin:12px 0;}
+  .stat{flex:1 1 140px; background:var(--panel-2); border:1px solid var(--hair); border-radius:10px; padding:10px 14px;}
+  .stat .label{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em;}
+  .stat .value{font-family:'JetBrains Mono',monospace; font-size:17px; margin-top:3px;}
+
+  .note-block{margin-top:22px;}
+  .note-block h2{font-size:13.5px; font-weight:600; margin:0 0 4px; color:var(--text);}
+  .note-block .sub{font-size:12px; color:var(--text-dim); margin:0 0 12px; line-height:1.5;}
+  .note-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  textarea{width:100%; min-height:110px; resize:vertical; background:var(--panel); border:1px solid var(--hair); border-radius:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; line-height:1.55; padding:12px; outline:none;}
+  textarea:focus{border-color:var(--cyan);}
+  .note-label{font-size:11.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; display:block;}
+  .save-hint{font-size:11px; color:var(--text-faint); margin-top:6px;}
+
+  @media (max-width: 920px){
+    #app{flex-direction:column;}
+    #sidebar{width:100%; flex:none; border-right:none; border-bottom:1px solid var(--hair);}
+    .grid2{grid-template-columns:1fr;}
+    .note-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <div id="sidebar">
+    <div class="brand">
+      <span class="num">EXPERIMENT 9</span>
+      <h1>ASK &amp; FSK</h1>
+      <p>Binary ASK and BFSK, coherent vs. noncoherent detection, over one shared channel model.</p>
+    </div>
+
+    <div class="ctrl-group">
+      <h2>Bit sequence</h2>
+      <div class="ctrl"><div class="ctrl-label"><span>Binary string (0/1)</span></div>
+        <input type="text" id="bitSeq" value="1011010011" maxlength="24"></div>
+      <div class="ctrl"><div class="ctrl-label"><span>Random length</span><span class="ctrl-val" id="valRandLen">10 bits</span></div>
+        <input type="range" id="randLen" min="4" max="20" step="1" value="10"></div>
+      <div class="btn" id="btnRandomize">Randomize</div>
+    </div>
+
+    <div class="ctrl-group">
+      <h2>Passband parameters</h2>
+      <div class="ctrl"><div class="ctrl-label"><span>Samples / bit</span><span class="ctrl-val" id="valSps">40</span></div>
+        <input type="range" id="sps" min="32" max="64" step="8" value="40"></div>
+      <div class="ctrl"><div class="ctrl-label"><span>Carrier f<sub>c</sub> (× R<sub>b</sub>)</span><span class="ctrl-val" id="valFc">6</span></div>
+        <input type="range" id="fc" min="4" max="10" step="1" value="6"></div>
+      <div class="ctrl"><div class="ctrl-label"><span>FSK tone spacing Δf (× R<sub>b</sub>)</span><span class="ctrl-val" id="valDf">1.00</span></div>
+        <input type="range" id="df" min="0.25" max="3" step="0.25" value="1"></div>
+    </div>
+
+    <div class="ctrl-group">
+      <h2>Channel</h2>
+      <div class="ctrl"><div class="ctrl-label"><span>SNR</span><span class="ctrl-val" id="valSnr">8 dB</span></div>
+        <input type="range" id="snr" min="-4" max="20" step="1" value="8"></div>
+    </div>
+
+    <div class="ctrl-group">
+      <h2>Monte Carlo size</h2>
+      <div class="ctrl"><div class="ctrl-label"><span>Histogram / BER trial bits</span><span class="ctrl-val" id="valTrialBits">400</span></div>
+        <input type="range" id="trialBits" min="150" max="900" step="50" value="400"></div>
+      <div class="ctrl"><div class="ctrl-label"><span>PSD sequence length</span><span class="ctrl-val" id="valPsdBits">300 bits</span></div>
+        <input type="range" id="psdBits" min="150" max="700" step="50" value="300"></div>
+    </div>
+  </div>
+
+  <!-- ===================== MAIN ===================== -->
+  <div id="main">
+    <div class="tabs">
+      <div class="tab active" data-view="wave">Passband waveforms</div>
+      <div class="tab" data-view="psd">Power spectra</div>
+      <div class="tab" data-view="corr">Correlator outputs</div>
+      <div class="tab" data-view="hist">Decision histograms</div>
+      <div class="tab" data-view="ber">BER curves</div>
+      <div class="tab" data-view="ortho">Orthogonality check</div>
+    </div>
+
+    <!-- ---------- WAVEFORMS ---------- -->
+    <div class="view active" id="view-wave">
+      <div class="card">
+        <div class="card-head"><h3>Binary ASK (OOK) — s(t) = bit · cos(2π f<sub>c</sub> t)</h3></div>
+        <canvas id="cvAsk" height="110"></canvas>
+        <div class="bit-row" id="bitRowAsk"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Binary FSK — cos(2π f<sub>1</sub> t) for '1', cos(2π f<sub>0</sub> t) for '0'</h3></div>
+        <canvas id="cvFsk" height="110"></canvas>
+        <div class="bit-row" id="bitRowFsk"></div>
+      </div>
+      <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">
+        f<sub>1</sub> = f<sub>c</sub> + Δf/2, f<sub>0</sub> = f<sub>c</sub> − Δf/2. Widen Δf on the left and watch how
+        much more visually distinct the two tones become bit-to-bit.
+      </p>
+    </div>
+
+    <!-- ---------- PSD ---------- -->
+    <div class="view" id="view-psd">
+      <div class="card">
+        <div class="card-head">
+          <h3>Normalized power spectra — Welch's method</h3>
+          <div class="legend" id="psdLegend"></div>
+        </div>
+        <div class="card-sub">x-axis: frequency normalized to bit rate (f / R<sub>b</sub>) · 0 dB = each signal's own peak</div>
+        <canvas id="cvPsd" height="320"></canvas>
+      </div>
+      <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">
+        ASK's spectrum is a single lobe centered on f<sub>c</sub>. FSK's spectrum splits into two lobes centered on
+        f<sub>0</sub> and f<sub>1</sub> — increase Δf and watch them separate; make it too wide and FSK's occupied
+        bandwidth clearly exceeds ASK's for the same bit rate.
+      </p>
+    </div>
+
+    <!-- ---------- CORRELATOR ---------- -->
+    <div class="view" id="view-corr">
+      <p style="font-size:12.3px; color:var(--text-dim); margin:0 0 10px; line-height:1.6;">
+        Per-bit decision statistic at the current SNR. Green = correct decision, red = bit error. The dashed line
+        is the decision threshold (midpoint between the noiseless '0' and '1' statistic values).
+      </p>
+      <div class="grid2" id="corrGrid"></div>
+    </div>
+
+    <!-- ---------- HISTOGRAMS ---------- -->
+    <div class="view" id="view-hist">
+      <p style="font-size:12.3px; color:var(--text-dim); margin:0 0 10px; line-height:1.6;">
+        Distribution of the decision statistic over many random bits at the current SNR, split by the true
+        transmitted bit. Overlap across the threshold line is exactly where bit errors come from.
+      </p>
+      <div class="grid2" id="histGrid"></div>
+    </div>
+
+    <!-- ---------- BER ---------- -->
+    <div class="view" id="view-ber">
+      <div class="card">
+        <div class="card-head">
+          <h3>Simulated BER vs. SNR</h3>
+          <div class="legend" id="berLegend"></div>
+        </div>
+        <div class="card-sub">y-axis: BER (log scale) · dashed cyan line: current SNR setting</div>
+        <canvas id="cvBer" height="340"></canvas>
+      </div>
+    </div>
+
+    <!-- ---------- ORTHOGONALITY ---------- -->
+    <div class="view" id="view-ortho">
+      <div class="validation">
+        <div class="head"><span class="badge">MANDATORY VALIDATION</span></div>
+        <p>Calculate the inner product of the two BFSK basis signals, φ<sub>1</sub>(t)=cos(2πf<sub>1</sub>t) and
+          φ<sub>0</sub>(t)=cos(2πf<sub>0</sub>t), over one bit interval T<sub>b</sub>, as a function of tone
+          spacing Δf. Orthogonality (zero inner product) is what lets a correlator receiver tell the two tones
+          apart with no cross-talk.</p>
+        <div class="stat-row">
+          <div class="stat"><div class="label">Current Δf</div><div class="value mono" id="orthoCurDf">–</div></div>
+          <div class="stat"><div class="label">⟨φ₁,φ₀⟩ at current Δf</div><div class="value mono" id="orthoIP">–</div></div>
+          <div class="stat"><div class="label">Verdict</div><div class="value mono" id="orthoVerdict">–</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Inner product ⟨φ₁,φ₀⟩ vs. tone spacing Δf</h3></div>
+        <canvas id="cvOrtho" height="280"></canvas>
+      </div>
+      <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">
+        The curve crosses zero at Δf = k·0.5·R<sub>b</sub> for integer k. The smallest of these, <b>Δf = 0.5·R<sub>b</sub></b>,
+        is the minimum tone spacing for <em>coherent</em> BFSK orthogonality (Sunde's FSK). Noncoherent (envelope)
+        detection needs the stricter <b>Δf = 1.0·R<sub>b</sub></b> to avoid cross-talk between the two energy detectors.
+      </p>
+    </div>
+
+    <!-- ---------- OBSERVATION NOTES ---------- -->
+    <div class="note-block">
+      <h2>Observation and interpretation</h2>
+      <p class="sub">Write your expected physical effect before changing a parameter, run the simulation, then record what you actually observed and how you diagnosed any discrepancy. Saved automatically to this artifact.</p>
+      <div class="note-grid">
+        <div>
+          <span class="note-label">Expected effect (before running)</span>
+          <textarea id="noteExpected" placeholder="e.g. Narrowing Δf below 0.5×Rb should make coherent FSK's decision statistic biased, since the basis tones are no longer orthogonal, raising its BER even though noncoherent FSK is already failing at a wider spacing."></textarea>
+        </div>
+        <div>
+          <span class="note-label">Observation vs. theory (after running)</span>
+          <textarea id="noteObserved" placeholder="e.g. Agrees with theory. Confirmed via the orthogonality tab (inner product stays nonzero below Δf=0.5) and the BER curve, where coherent FSK's floor rises exactly in that region."></textarea>
+        </div>
+      </div>
+      <div class="save-hint" id="saveHint">Notes save automatically.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     0. Canvas + math helpers
+  ============================================================ */
+  function fitCanvas(cv){
+    const cssH = cv.height;
+    const rect = cv.getBoundingClientRect();
+    const cssW = rect.width || cv.parentElement.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
+    cv.style.width = cssW+'px'; cv.style.height = cssH+'px';
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx, w:cssW, h:cssH};
+  }
+  function gaussianRandom(){
+    let u=0,v=0;
+    while(u===0) u=Math.random();
+    while(v===0) v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  }
+  function parseBits(str){
+    const clean=(str||'').replace(/[^01]/g,'');
+    if (clean.length===0) return [1,0,1,1,0,1,0,0];
+    return clean.split('').map(c=>c==='1'?1:0);
+  }
+  function randomBits(n){ const b=[]; for(let i=0;i<n;i++) b.push(Math.random()<0.5?0:1); return b; }
+  function mean(a){ return a.reduce((x,y)=>x+y,0)/a.length; }
+
+  /* ============================================================
+     1. Signal generation
+  ============================================================ */
+  function genASK(bits, sps, fc){
+    const y=[];
+    for(let i=0;i<bits.length;i++){
+      const amp = bits[i]?1:0;
+      for(let s=0;s<sps;s++){ const t=s/sps; y.push(amp*Math.cos(2*Math.PI*fc*t)); }
+    }
+    return y;
+  }
+  function genFSK(bits, sps, f1, f0){
+    const y=[];
+    for(let i=0;i<bits.length;i++){
+      const f = bits[i]?f1:f0;
+      for(let s=0;s<sps;s++){ const t=s/sps; y.push(Math.cos(2*Math.PI*f*t)); }
+    }
+    return y;
+  }
+  function addNoise(y, sigma){
+    return y.map(v=>v+sigma*gaussianRandom());
+  }
+  function sigmaFromSnrDb(snrDb){
+    const Ps = 0.5; // average power of a unit-amplitude tone
+    const Pn = Ps / Math.pow(10, snrDb/10);
+    return Math.sqrt(Pn);
+  }
+
+  /* ============================================================
+     2. Correlators / decision statistics
+  ============================================================ */
+  function correlateIQ(seg, sps, freq){
+    let I=0, Q=0;
+    for(let s=0;s<sps;s++){
+      const t=s/sps;
+      I += seg[s]*Math.cos(2*Math.PI*freq*t);
+      Q += seg[s]*Math.sin(2*Math.PI*freq*t);
+    }
+    return {I: I*2/sps, Q: Q*2/sps};
+  }
+  function statsForBit(seg, sps, fc, f1, f0){
+    const cA = correlateIQ(seg, sps, fc);
+    const c1 = correlateIQ(seg, sps, f1);
+    const c0 = correlateIQ(seg, sps, f0);
+    return {
+      cohASK: cA.I,
+      noncohASK: cA.I*cA.I + cA.Q*cA.Q,
+      cohFSK: c1.I - c0.I,
+      noncohFSK: (c1.I*c1.I + c1.Q*c1.Q) - (c0.I*c0.I + c0.Q*c0.Q)
+    };
+  }
+  function computeThresholds(sps, fc, f1, f0){
+    const ask1 = genASK([1], sps, fc), ask0 = genASK([0], sps, fc);
+    const fsk1 = genFSK([1], sps, f1, f0), fsk0 = genFSK([0], sps, f1, f0);
+    const sA1 = statsForBit(ask1, sps, fc, f1, f0);
+    const sA0 = statsForBit(ask0, sps, fc, f1, f0);
+    const sF1 = statsForBit(fsk1, sps, fc, f1, f0);
+    const sF0 = statsForBit(fsk0, sps, fc, f1, f0);
+    return {
+      cohASK:      (sA1.cohASK + sA0.cohASK)/2,
+      noncohASK:   (sA1.noncohASK + sA0.noncohASK)/2,
+      cohFSK:      (sF1.cohFSK + sF0.cohFSK)/2,
+      noncohFSK:   (sF1.noncohFSK + sF0.noncohFSK)/2
+    };
+  }
+
+  const DETECTORS = [
+    {key:'cohASK',    label:'Coherent ASK',     css:'#4fd1c5', mod:'ask'},
+    {key:'noncohASK', label:'Noncoherent ASK',  css:'#2f8f86', mod:'ask'},
+    {key:'cohFSK',    label:'Coherent FSK',     css:'#ffb020', mod:'fsk'},
+    {key:'noncohFSK', label:'Noncoherent FSK',  css:'#b3790a', mod:'fsk'},
+  ];
+
+  function runTrial(bits, sps, fc, f1, f0, snrDb, thresholds){
+    const sigma = sigmaFromSnrDb(snrDb);
+    const askClean = genASK(bits, sps, fc);
+    const fskClean = genFSK(bits, sps, f1, f0);
+    const askNoisy = addNoise(askClean, sigma);
+    const fskNoisy = addNoise(fskClean, sigma);
+    const results = { cohASK:[], noncohASK:[], cohFSK:[], noncohFSK:[] };
+    for(let i=0;i<bits.length;i++){
+      const askSeg = askNoisy.slice(i*sps, (i+1)*sps);
+      const fskSeg = fskNoisy.slice(i*sps, (i+1)*sps);
+      const sA = statsForBit(askSeg, sps, fc, f1, f0);
+      const sF = statsForBit(fskSeg, sps, fc, f1, f0);
+      results.cohASK.push(sA.cohASK);
+      results.noncohASK.push(sA.noncohASK);
+      results.cohFSK.push(sF.cohFSK);
+      results.noncohFSK.push(sF.noncohFSK);
+    }
+    return results;
+  }
+
+  /* ============================================================
+     3. FFT + Welch PSD (for power spectra tab)
+  ============================================================ */
+  function fftInPlace(re, im){
+    const n=re.length;
+    for(let i=1,j=0;i<n;i++){
+      let bit=n>>1;
+      for(; j&bit; bit>>=1) j^=bit;
+      j^=bit;
+      if (i<j){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; }
+    }
+    for(let len=2; len<=n; len<<=1){
+      const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+      for(let i=0;i<n;i+=len){
+        let curWr=1, curWi=0;
+        for(let j=0;j<len/2;j++){
+          const ur=re[i+j], ui=im[i+j], idx2=i+j+len/2;
+          const vr=re[idx2]*curWr - im[idx2]*curWi;
+          const vi=re[idx2]*curWi + im[idx2]*curWr;
+          re[i+j]=ur+vr; im[i+j]=ui+vi;
+          re[idx2]=ur-vr; im[idx2]=ui-vi;
+          const nwr=curWr*wr-curWi*wi, nwi=curWr*wi+curWi*wr;
+          curWr=nwr; curWi=nwi;
+        }
+      }
+    }
+  }
+  function nextPow2(n){ let p=1; while(p<n) p<<=1; return p; }
+  function welchPSD(x, fs, segLen){
+    const M = nextPow2(Math.min(segLen, x.length));
+    const hop = Math.max(1, Math.floor(M/2));
+    const win=new Array(M); let winEnergy=0;
+    for(let n=0;n<M;n++){ win[n]=0.54-0.46*Math.cos(2*Math.PI*n/(M-1)); winEnergy+=win[n]*win[n]; }
+    const nSeg = Math.max(1, Math.floor((x.length-M)/hop)+1);
+    const psd = new Array(M/2+1).fill(0);
+    for(let s=0;s<nSeg;s++){
+      const start=s*hop; const re=new Array(M), im=new Array(M);
+      for(let n=0;n<M;n++){ re[n]=(x[start+n]||0)*win[n]; im[n]=0; }
+      fftInPlace(re,im);
+      for(let k=0;k<=M/2;k++) psd[k]+= re[k]*re[k]+im[k]*im[k];
+    }
+    for(let k=0;k<=M/2;k++) psd[k]/= (nSeg*winEnergy*fs);
+    const freqs=new Array(M/2+1);
+    for(let k=0;k<=M/2;k++) freqs[k]=k*fs/M;
+    return {freqs, psd};
+  }
+  function toDbNormalized(psd){
+    const maxV=Math.max(...psd,1e-12);
+    return psd.map(v=>10*Math.log10(Math.max(v,1e-12)/maxV));
+  }
+
+  /* ============================================================
+     4. Plot helpers
+  ============================================================ */
+  function plotLine(cv, y, opts){
+    opts=opts||{};
+    const {ctx,w,h}=fitCanvas(cv);
+    ctx.clearRect(0,0,w,h);
+    const padL=8,padR=8,padT=10,padB=6;
+    const plotW=w-padL-padR, plotH=h-padT-padB;
+    const yMin=opts.yMin!==undefined?opts.yMin:-1.3, yMax=opts.yMax!==undefined?opts.yMax:1.3;
+    const N=y.length;
+    const xAt=i=>padL+plotW*i/(N-1);
+    const yAt=v=>padT+plotH-((v-yMin)/(yMax-yMin))*plotH;
+    if (opts.sps){
+      ctx.strokeStyle='#1c2733';
+      const nBits=N/opts.sps;
+      for(let b=0;b<=nBits;b++){
+        const x=xAt(Math.min(b*opts.sps,N-1));
+        ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
+      }
+    }
+    ctx.strokeStyle='#223040'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(padL,yAt(0)); ctx.lineTo(w-padR,yAt(0)); ctx.stroke();
+    ctx.beginPath(); ctx.strokeStyle=opts.color||'#4fd1c5'; ctx.lineWidth=1.4;
+    for(let i=0;i<N;i++){ const x=xAt(i), yy=yAt(y[i]); if(i===0) ctx.moveTo(x,yy); else ctx.lineTo(x,yy); }
+    ctx.stroke();
+  }
+
+  function plotXYMulti(cv, xs, series, opts){
+    opts=opts||{};
+    const {ctx,w,h}=fitCanvas(cv);
+    ctx.clearRect(0,0,w,h);
+    const padL=46, padR=14, padT=12, padB=28;
+    const plotW=w-padL-padR, plotH=h-padT-padB;
+    const visSeries = series.filter(s=>s.visible);
+    let allY=[]; visSeries.forEach(s=>s.data.forEach(v=>{ if(isFinite(v)) allY.push(v); }));
+    if (allY.length===0) allY=[0,1];
+    let yMin=opts.yMin!==undefined?opts.yMin:Math.min(...allY);
+    let yMax=opts.yMax!==undefined?opts.yMax:Math.max(...allY);
+    if (yMin===yMax){yMin-=1;yMax+=1;}
+    if(opts.yMin===undefined){ const p=(yMax-yMin)*0.08; yMin-=p; yMax+=p; }
+    const xMin=opts.xMin!==undefined?opts.xMin:Math.min(...xs);
+    const xMax=opts.xMax!==undefined?opts.xMax:Math.max(...xs);
+    const xAt=v=>padL+plotW*(v-xMin)/((xMax-xMin)||1);
+    const yAt=v=>padT+plotH-((v-yMin)/(yMax-yMin))*plotH;
+
+    ctx.strokeStyle='#1c2733'; ctx.lineWidth=1;
+    ctx.font='10px JetBrains Mono, monospace'; ctx.fillStyle='#4d5a68';
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    const nY = opts.yTicks || 4;
+    for(let g=0; g<=nY; g++){
+      const v=yMin+(yMax-yMin)*g/nY; const y=yAt(v);
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+      ctx.fillText(opts.yFmt?opts.yFmt(v):v.toFixed(1), padL-6, y);
+    }
+    if (yMin<0 && yMax>0){
+      ctx.strokeStyle='#2a3644';
+      ctx.beginPath(); ctx.moveTo(padL,yAt(0)); ctx.lineTo(w-padR,yAt(0)); ctx.stroke();
+    }
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    for(let g=0; g<=5; g++){
+      const v=xMin+(xMax-xMin)*g/5; const x=xAt(v);
+      ctx.fillStyle='#4d5a68';
+      ctx.fillText(opts.xFmt?opts.xFmt(v):v.toFixed(1), x, padT+plotH+6);
+    }
+    ctx.strokeStyle='#223040';
+    ctx.beginPath(); ctx.moveTo(padL,padT+plotH); ctx.lineTo(w-padR,padT+plotH); ctx.stroke();
+
+    if (opts.markX!==undefined && opts.markX!==null){
+      const mx = xAt(opts.markX);
+      ctx.strokeStyle='#4fd1c5'; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(mx,padT); ctx.lineTo(mx,padT+plotH); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    visSeries.forEach(s=>{
+      ctx.beginPath(); ctx.strokeStyle=s.css; ctx.lineWidth=1.8;
+      let started=false;
+      xs.forEach((x,i)=>{
+        const v=s.data[i];
+        if (!isFinite(v)) { started=false; return; }
+        const px=xAt(x), py=yAt(v);
+        if (!started){ ctx.moveTo(px,py); started=true; } else ctx.lineTo(px,py);
+      });
+      ctx.stroke();
+    });
+    return {xAt, yAt};
+  }
+
+  function plotStem(cv, values, trueBits, threshold){
+    const {ctx,w,h}=fitCanvas(cv);
+    ctx.clearRect(0,0,w,h);
+    const padL=40, padR=10, padT=10, padB=20;
+    const plotW=w-padL-padR, plotH=h-padT-padB;
+    const allV = values.concat([threshold]);
+    let yMin=Math.min(...allV), yMax=Math.max(...allV);
+    if (yMin===yMax){yMin-=1;yMax+=1;}
+    const pad=(yMax-yMin)*0.15; yMin-=pad; yMax+=pad;
+    const N=values.length;
+    const xAt=i=> padL + plotW*(i+0.5)/N;
+    const yAt=v=> padT+plotH-((v-yMin)/(yMax-yMin))*plotH;
+
+    ctx.font='10px JetBrains Mono, monospace'; ctx.fillStyle='#4d5a68';
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(let g=0; g<=3; g++){
+      const v=yMin+(yMax-yMin)*g/3; const y=yAt(v);
+      ctx.strokeStyle='#1c2733'; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+      ctx.fillText(v.toFixed(2), padL-6, y);
+    }
+    // threshold line
+    ctx.strokeStyle='#e7edf3'; ctx.setLineDash([4,3]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(padL,yAt(threshold)); ctx.lineTo(w-padR,yAt(threshold)); ctx.stroke();
+    ctx.setLineDash([]);
+    const zeroY = yAt(0);
+
+    for(let i=0;i<N;i++){
+      const x=xAt(i), y=yAt(values[i]);
+      const decided = values[i] > threshold ? 1 : 0;
+      const correct = decided === trueBits[i];
+      ctx.strokeStyle = correct ? '#7ee787' : '#ff6b6b';
+      ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(x, zeroY); ctx.lineTo(x, y); ctx.stroke();
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath(); ctx.arc(x,y,2.6,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function plotHistogram(cv, data0, data1, threshold){
+    const {ctx,w,h}=fitCanvas(cv);
+    ctx.clearRect(0,0,w,h);
+    const padL=40, padR=10, padT=10, padB=20;
+    const plotW=w-padL-padR, plotH=h-padT-padB;
+    const all = data0.concat(data1);
+    let xMin=Math.min(...all), xMax=Math.max(...all);
+    if (xMin===xMax){xMin-=1;xMax+=1;}
+    const pad=(xMax-xMin)*0.08; xMin-=pad; xMax+=pad;
+    const nBins=22;
+    const binW=(xMax-xMin)/nBins;
+    const bins0=new Array(nBins).fill(0), bins1=new Array(nBins).fill(0);
+    data0.forEach(v=>{ let b=Math.floor((v-xMin)/binW); b=Math.max(0,Math.min(nBins-1,b)); bins0[b]++; });
+    data1.forEach(v=>{ let b=Math.floor((v-xMin)/binW); b=Math.max(0,Math.min(nBins-1,b)); bins1[b]++; });
+    const maxCount = Math.max(...bins0,...bins1,1);
+    const xAt = v => padL + plotW*(v-xMin)/(xMax-xMin);
+    const yAt = c => padT+plotH - (c/maxCount)*plotH;
+
+    for(let b=0;b<nBins;b++){
+      const x0 = xAt(xMin+b*binW), x1 = xAt(xMin+(b+1)*binW);
+      const bw = Math.max(1,x1-x0-1);
+      const h0 = padT+plotH - yAt(bins0[b]) ? (plotH*(bins0[b]/maxCount)) : 0;
+      const h1 = (plotH*(bins1[b]/maxCount));
+      ctx.fillStyle = 'rgba(255,107,107,.55)';
+      ctx.fillRect(x0, padT+plotH-(plotH*(bins0[b]/maxCount)), bw, plotH*(bins0[b]/maxCount));
+      ctx.fillStyle = 'rgba(126,231,135,.55)';
+      ctx.fillRect(x0, padT+plotH-(plotH*(bins1[b]/maxCount)), bw, plotH*(bins1[b]/maxCount));
+    }
+    ctx.strokeStyle='#e7edf3'; ctx.setLineDash([4,3]); ctx.lineWidth=1.2;
+    const tx = xAt(threshold);
+    ctx.beginPath(); ctx.moveTo(tx,padT); ctx.lineTo(tx,padT+plotH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle='#223040';
+    ctx.beginPath(); ctx.moveTo(padL,padT+plotH); ctx.lineTo(w-padR,padT+plotH); ctx.stroke();
+  }
+
+  /* ============================================================
+     5. State + control refs
+  ============================================================ */
+  const els = {
+    bitSeq: document.getElementById('bitSeq'),
+    randLen: document.getElementById('randLen'), valRandLen: document.getElementById('valRandLen'),
+    sps: document.getElementById('sps'), valSps: document.getElementById('valSps'),
+    fc: document.getElementById('fc'), valFc: document.getElementById('valFc'),
+    df: document.getElementById('df'), valDf: document.getElementById('valDf'),
+    snr: document.getElementById('snr'), valSnr: document.getElementById('valSnr'),
+    trialBits: document.getElementById('trialBits'), valTrialBits: document.getElementById('valTrialBits'),
+    psdBits: document.getElementById('psdBits'), valPsdBits: document.getElementById('valPsdBits'),
+  };
+
+  function params(){
+    const sps = parseInt(els.sps.value,10);
+    const fc = parseFloat(els.fc.value);
+    const df = parseFloat(els.df.value);
+    const f1 = fc + df/2, f0 = fc - df/2;
+    const snr = parseFloat(els.snr.value);
+    return {sps, fc, df, f1, f0, snr};
+  }
+
+  const psdVisible = {ask:true, fsk:true};
+  const berVisible = {}; DETECTORS.forEach(d=>berVisible[d.key]=true);
+
+  function buildLegendGeneric(container, items, visMap, onToggle){
+    container.innerHTML='';
+    items.forEach(it=>{
+      const el=document.createElement('span');
+      el.className='legend-item'+(visMap[it.key]?'':' off');
+      el.innerHTML='<span class="dot" style="background:'+it.css+'"></span>'+it.label;
+      el.addEventListener('click', ()=>{ visMap[it.key]=!visMap[it.key]; el.classList.toggle('off'); onToggle(); });
+      container.appendChild(el);
+    });
+  }
+
+  /* ============================================================
+     6. Render: Waveforms
+  ============================================================ */
+  function renderWave(){
+    const bits = parseBits(els.bitSeq.value);
+    const {sps, fc, f1, f0} = params();
+    const yAsk = genASK(bits, sps, fc);
+    const yFsk = genFSK(bits, sps, f1, f0);
+    plotLine(document.getElementById('cvAsk'), yAsk, {color:'#4fd1c5', sps, yMin:-1.2, yMax:1.2});
+    plotLine(document.getElementById('cvFsk'), yFsk, {color:'#ffb020', sps, yMin:-1.2, yMax:1.2});
+    ['bitRowAsk','bitRowFsk'].forEach(id=>{
+      const row = document.getElementById(id); row.innerHTML='';
+      bits.forEach(b=>{ const s=document.createElement('span'); s.textContent=b; row.appendChild(s); });
+    });
+  }
+
+  /* ============================================================
+     7. Render: PSD
+  ============================================================ */
+  let cachedPsd = {};
+  function computePsd(){
+    const {sps, fc, f1, f0} = params();
+    const bits = randomBits(parseInt(els.psdBits.value,10));
+    const yAsk = genASK(bits, sps, fc);
+    const yFsk = genFSK(bits, sps, f1, f0);
+    const pAsk = welchPSD(yAsk, sps, 256);
+    const pFsk = welchPSD(yFsk, sps, 256);
+    cachedPsd = {
+      ask: {freqs:pAsk.freqs, db:toDbNormalized(pAsk.psd)},
+      fsk: {freqs:pFsk.freqs, db:toDbNormalized(pFsk.psd)},
+    };
+  }
+  function renderPsd(){
+    computePsd();
+    buildLegendGeneric(document.getElementById('psdLegend'),
+      [{key:'ask',label:'ASK',css:'#4fd1c5'},{key:'fsk',label:'FSK',css:'#ffb020'}], psdVisible, drawPsd);
+    drawPsd();
+  }
+  function drawPsd(){
+    const xs = cachedPsd.ask.freqs;
+    const series = [
+      {css:'#4fd1c5', visible:psdVisible.ask, data:cachedPsd.ask.db},
+      {css:'#ffb020', visible:psdVisible.fsk, data:cachedPsd.fsk.db},
+    ];
+    plotXYMulti(document.getElementById('cvPsd'), xs, series, {yMin:-60, yMax:5, xFmt:v=>v.toFixed(1), yFmt:v=>v.toFixed(0)+'dB'});
+  }
+
+  /* ============================================================
+     8. Render: Correlator outputs
+  ============================================================ */
+  function renderCorr(){
+    const bits = parseBits(els.bitSeq.value);
+    const {sps, fc, f1, f0, snr} = params();
+    const th = computeThresholds(sps, fc, f1, f0);
+    const res = runTrial(bits, sps, fc, f1, f0, snr, th);
+    const grid = document.getElementById('corrGrid');
+    grid.innerHTML='';
+    DETECTORS.forEach(d=>{
+      const card=document.createElement('div'); card.className='card';
+      const errs = res[d.key].filter((v,i)=> (v>th[d.key]?1:0) !== bits[i]).length;
+      card.innerHTML =
+        '<div class="card-head"><h3>'+d.label+'</h3><span class="card-sub">'+errs+' / '+bits.length+' bit errors</span></div>'+
+        '<canvas height="150"></canvas>';
+      grid.appendChild(card);
+      plotStem(card.querySelector('canvas'), res[d.key], bits, th[d.key]);
+    });
+  }
+
+  /* ============================================================
+     9. Render: Histograms
+  ============================================================ */
+  function renderHist(){
+    const {sps, fc, f1, f0, snr} = params();
+    const n = parseInt(els.trialBits.value,10);
+    const bits = randomBits(n);
+    const th = computeThresholds(sps, fc, f1, f0);
+    const res = runTrial(bits, sps, fc, f1, f0, snr, th);
+    const grid = document.getElementById('histGrid');
+    grid.innerHTML='';
+    DETECTORS.forEach(d=>{
+      const data0=[], data1=[];
+      res[d.key].forEach((v,i)=>{ if(bits[i]===0) data0.push(v); else data1.push(v); });
+      const errs = res[d.key].filter((v,i)=> (v>th[d.key]?1:0)!==bits[i]).length;
+      const ber = (errs/n).toFixed(4);
+      const card=document.createElement('div'); card.className='card';
+      card.innerHTML =
+        '<div class="card-head"><h3>'+d.label+'</h3><span class="card-sub mono">BER ≈ '+ber+'</span></div>'+
+        '<canvas height="150"></canvas>'+
+        '<div class="legend"><span class="legend-item"><span class="sw" style="background:rgba(255,107,107,.7)"></span>bit = 0</span>'+
+        '<span class="legend-item"><span class="sw" style="background:rgba(126,231,135,.7)"></span>bit = 1</span></div>';
+      grid.appendChild(card);
+      plotHistogram(card.querySelector('canvas'), data0, data1, th[d.key]);
+    });
+  }
+
+  /* ============================================================
+     10. Render: BER curves
+  ============================================================ */
+  let cachedBer = null;
+  function computeBer(){
+    const {sps, fc, f1, f0} = params();
+    const n = parseInt(els.trialBits.value,10);
+    const th = computeThresholds(sps, fc, f1, f0);
+    const snrRange = [];
+    for(let s=-4; s<=20; s+=2) snrRange.push(s);
+    const curves = {cohASK:[], noncohASK:[], cohFSK:[], noncohFSK:[]};
+    snrRange.forEach(snr=>{
+      const bits = randomBits(n);
+      const res = runTrial(bits, sps, fc, f1, f0, snr, th);
+      DETECTORS.forEach(d=>{
+        const errs = res[d.key].filter((v,i)=> (v>th[d.key]?1:0)!==bits[i]).length;
+        const ber = Math.max(errs/n, 1/(n*4));
+        curves[d.key].push(Math.log10(ber));
+      });
+    });
+    cachedBer = {snrRange, curves};
+  }
+  function renderBer(){
+    computeBer();
+    buildLegendGeneric(document.getElementById('berLegend'), DETECTORS, berVisible, drawBer);
+    drawBer();
+  }
+  function drawBer(){
+    const {snr} = params();
+    const series = DETECTORS.map(d=>({css:d.css, visible:berVisible[d.key], data:cachedBer.curves[d.key]}));
+    plotXYMulti(document.getElementById('cvBer'), cachedBer.snrRange, series, {
+      yMin:-4, yMax:0, yTicks:4,
+      xFmt: v=>v.toFixed(0), yFmt: v=>'1e'+v.toFixed(0),
+      markX: snr
+    });
+  }
+
+  /* ============================================================
+     11. Render: Orthogonality check
+  ============================================================ */
+  function innerProduct(sps, f1, f0){
+    let ip=0;
+    for(let s=0;s<sps;s++){
+      const t=s/sps;
+      ip += Math.cos(2*Math.PI*f1*t)*Math.cos(2*Math.PI*f0*t);
+    }
+    return ip/sps; // normalized (1/Tb)*integral approx
+  }
+  function renderOrtho(){
+    const {sps, fc, df, f1, f0} = params();
+    const curIP = innerProduct(sps, f1, f0);
+    document.getElementById('orthoCurDf').textContent = df.toFixed(2)+' × Rb';
+    document.getElementById('orthoIP').textContent = curIP.toFixed(4);
+    const verdictEl = document.getElementById('orthoVerdict');
+    if (Math.abs(curIP) < 0.02){
+      verdictEl.innerHTML = '<span class="tag good">Orthogonal</span>';
+    } else if (df >= 1.0 - 1e-6 ? false : df >= 0.5 - 1e-6 && Math.abs(curIP) < 0.15){
+      verdictEl.innerHTML = '<span class="tag warn">Coherent-only</span>';
+    } else {
+      verdictEl.innerHTML = '<span class="tag bad">Not orthogonal</span>';
+    }
+
+    const dfs = []; const ips = [];
+    for(let d=0.05; d<=3.0; d+=0.05){
+      dfs.push(d);
+      ips.push(innerProduct(sps, fc+d/2, fc-d/2));
+    }
+    const {xAt, yAt} = plotXYMulti(document.getElementById('cvOrtho'), dfs, [{css:'#4fd1c5', visible:true, data:ips}], {
+      xFmt:v=>v.toFixed(1), yFmt:v=>v.toFixed(2), markX: df
+    });
+    // mark theoretical zero-crossings at multiples of 0.5
+    const {ctx} = fitCanvas(document.getElementById('cvOrtho'));
+    ctx.setLineDash([2,3]);
+    ctx.strokeStyle = 'rgba(126,231,135,.55)';
+    for(let k=0.5; k<=3.0; k+=0.5){
+      const x = xAt(k);
+      ctx.beginPath(); ctx.moveTo(x, 12); ctx.lineTo(x, 268); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  /* ============================================================
+     12. Tab wiring + recompute
+  ============================================================ */
+  function drawActive(){
+    const tab = document.querySelector('.tab.active').dataset.view;
+    if (tab==='wave') renderWave();
+    else if (tab==='psd') renderPsd();
+    else if (tab==='corr') renderCorr();
+    else if (tab==='hist') renderHist();
+    else if (tab==='ber') renderBer();
+    else if (tab==='ortho') renderOrtho();
+  }
+
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('view-'+tab.dataset.view).classList.add('active');
+      drawActive();
+    });
+  });
+
+  els.bitSeq.addEventListener('input', ()=>{ els.bitSeq.value = els.bitSeq.value.replace(/[^01]/g,''); drawActive(); });
+  els.randLen.addEventListener('input', ()=>{ els.valRandLen.textContent = els.randLen.value+' bits'; });
+  document.getElementById('btnRandomize').addEventListener('click', ()=>{
+    els.bitSeq.value = randomBits(parseInt(els.randLen.value,10)).join('');
+    drawActive();
+  });
+  els.sps.addEventListener('input', ()=>{ els.valSps.textContent = els.sps.value; drawActive(); });
+  els.fc.addEventListener('input', ()=>{ els.valFc.textContent = els.fc.value; drawActive(); });
+  els.df.addEventListener('input', ()=>{ els.valDf.textContent = parseFloat(els.df.value).toFixed(2); drawActive(); });
+  els.snr.addEventListener('input', ()=>{ els.valSnr.textContent = els.snr.value+' dB'; drawActive(); });
+  els.trialBits.addEventListener('input', ()=>{ els.valTrialBits.textContent = els.trialBits.value; drawActive(); });
+  els.psdBits.addEventListener('input', ()=>{ els.valPsdBits.textContent = els.psdBits.value+' bits'; drawActive(); });
+
+  window.addEventListener('resize', drawActive);
+
+  /* ============================================================
+     13. Notes persistence
+  ============================================================ */
+  const noteExpected = document.getElementById('noteExpected');
+  const noteObserved = document.getElementById('noteObserved');
+  const saveHint = document.getElementById('saveHint');
+  let saveTimer=null;
+  async function loadNotes(){
+    try{
+      if (window.storage){
+        const r = await window.storage.get('exp9-notes');
+        if (r && r.value){
+          const parsed = JSON.parse(r.value);
+          noteExpected.value = parsed.expected || '';
+          noteObserved.value = parsed.observed || '';
+        }
+      }
+    }catch(e){}
+  }
+  function scheduleSave(){
+    saveHint.textContent='Saving…';
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(async ()=>{
+      try{
+        if (window.storage){
+          await window.storage.set('exp9-notes', JSON.stringify({expected:noteExpected.value, observed:noteObserved.value}));
+        }
+        saveHint.textContent='Notes saved.';
+      }catch(e){ saveHint.textContent='Could not save notes (storage unavailable).'; }
+    }, 500);
+  }
+  noteExpected.addEventListener('input', scheduleSave);
+  noteObserved.addEventListener('input', scheduleSave);
+  loadNotes();
+
+  /* ============================================================
+     14. Initial render
+  ============================================================ */
+  drawActive();
+
+})();
+</script>
+</body>
+</html>
